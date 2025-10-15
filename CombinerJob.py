@@ -42,4 +42,5 @@ class CombinerJob(JobV1):
         self.job.submit()
 
     def time_taken(self):
-        return self.job.result().time_taken
+        return self.job.result().metadata['execution']['execution_spans'].duration
+        #return self.job.result().time_taken
