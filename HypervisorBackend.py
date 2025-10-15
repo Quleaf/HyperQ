@@ -61,7 +61,7 @@ class HypervisorBackend(BackendV2):
         return self.backend.max_circuits
 
     # it deletes chosen executables from the executables list. Is it a proper way?
-    def run(self, executables, selection = None, time_sched = False, intra_vm_sched = False, noise_aware = False, **kwargs) -> CombinerJob:
+    def run(self, executables, selection = None, time_sched = False, intra_vm_sched = False, noise_aware = False, dynamic = False, shots = None, **kwargs) -> CombinerJob:
         QVM_INTERNAL_MAX_PARTITIONS = 2
         # add selection to parameter if want to override selection
         if selection == None:
@@ -87,10 +87,11 @@ class HypervisorBackend(BackendV2):
         direction_corrected_circ = self.translate.run(combined_circ)
 
         # add a controlled gate to trigger dynamic circuit?
-        dummy_creg = ClassicalRegister(1, 'dummy')
-        direction_corrected_circ.add_register(dummy_creg)
-        with direction_corrected_circ.if_test((dummy_creg, 1)):
-            direction_corrected_circ.x(0)
+        if dynamic:
+            dummy_creg = ClassicalRegister(1, 'dummy')
+            direction_corrected_circ.add_register(dummy_creg)
+            with direction_corrected_circ.if_test((dummy_creg, 1)):
+                direction_corrected_circ.x(0)
 
         # delete chosen executables from executables list. Loop backwards to keep the index
         # delete_indexes = sorted((i[0] for i in selection), reverse=True)
@@ -99,10 +100,13 @@ class HypervisorBackend(BackendV2):
             executables.pop(i)
 
         # print(direction_corrected_circ)
-        return CombinerJob(self.sampler.run([direction_corrected_circ]), mappings, clbit_cnt, backend=self)
+        if shots:
+            return CombinerJob(self.sampler.run([direction_corrected_circ], shots=shots), mappings, clbit_cnt, backend=self)
+        else:
+            return CombinerJob(self.sampler.run([direction_corrected_circ]), mappings, clbit_cnt, backend=self)
     
     # do not actually submit job to backend, just for latency test
-    def dryrun(self, executables, selection = None, time_sched = False, intra_vm_sched = False, noise_aware = False, **kwargs):
+    def dryrun(self, executables, selection = None, time_sched = False, intra_vm_sched = False, noise_aware = False, dynamic = False,  **kwargs):
         QVM_INTERNAL_MAX_PARTITIONS = 2
         if selection == None:
             selection = self.schedule(executables, time_sched, intra_vm_sched, noise_aware)
@@ -127,10 +131,11 @@ class HypervisorBackend(BackendV2):
         direction_corrected_circ = self.translate.run(combined_circ)
         
         # add a controlled gate to trigger dynamic circuit?
-        dummy_creg = ClassicalRegister(1, 'dummy')
-        direction_corrected_circ.add_register(dummy_creg)
-        with direction_corrected_circ.if_test((dummy_creg, 1)):
-            direction_corrected_circ.x(0)
+        if dynamic:
+            dummy_creg = ClassicalRegister(1, 'dummy')
+            direction_corrected_circ.add_register(dummy_creg)
+            with direction_corrected_circ.if_test((dummy_creg, 1)):
+                direction_corrected_circ.x(0)
 
         # delete chosen executables from executables list. Loop backwards to keep the index
         # comment out if doing schedule time test because timeit repeats this function
